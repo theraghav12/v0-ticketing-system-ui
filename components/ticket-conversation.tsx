@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { MoreVertical, Send, Paperclip, Smile, Lock, ArrowRightLeft, FileText, ImageIcon, Video } from "lucide-react"
+import { MoreVertical, Send, Paperclip, Smile, Lock, ArrowRightLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -22,8 +22,8 @@ import { TransferTicketModal } from "./transfer-ticket-modal"
 import { TicketTimeline } from "./ticket-timeline"
 import { ClosureSummary } from "./closure-summary"
 import { EmptyState } from "./empty-states"
+import { MessageBubble } from "./message-bubble"
 import type { Ticket, Message, UserRole } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 interface TicketConversationProps {
   ticket: Ticket
@@ -46,11 +46,13 @@ export function TicketConversation({
 }: TicketConversationProps) {
   const [messageInput, setMessageInput] = useState("")
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<{ id: string; content: string } | null>(null)
 
   const handleSend = () => {
     if (messageInput.trim()) {
       onSendMessage(messageInput, showInternalNotes)
       setMessageInput("")
+      setReplyingTo(null)
     }
   }
 
@@ -64,7 +66,18 @@ export function TicketConversation({
   const handleTransfer = (data: { team: string; user: string; note: string }) => {
     console.log("[v0] Transferring ticket:", data)
     onUpdateTicket({ assignedTo: data.user })
-    // In a real app, would also create timeline event and internal note
+  }
+
+  const handleReply = (messageId: string, content: string) => {
+    setReplyingTo({ id: messageId, content })
+    // Focus input
+    const input = document.querySelector("textarea") as HTMLTextAreaElement
+    input?.focus()
+  }
+
+  const handleReaction = (messageId: string, emoji: string) => {
+    console.log(`[v0] User reacted to message ${messageId} with ${emoji}`)
+    // In a real app, this would update the message in the backend
   }
 
   const displayMessages = showInternalNotes
@@ -232,63 +245,14 @@ export function TicketConversation({
               }
 
               return (
-                <div key={message.id} className={cn("flex gap-3", isOwn ? "flex-row-reverse" : "flex-row")}>
-                  <Avatar className="h-8 w-8 flex-shrink-0">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                    <AvatarFallback>
-                      {message.sender
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className={cn("flex flex-col gap-1", isOwn ? "items-end" : "items-start")}>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{message.sender}</span>
-                      <span>•</span>
-                      <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
-                      {message.isInternal && (
-                        <Badge variant="secondary" className="gap-1 text-xs">
-                          <Lock className="h-3 w-3" />
-                          Internal
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div
-                      className={cn(
-                        "rounded-lg px-4 py-2 max-w-xl",
-                        isOwn ? "bg-primary text-primary-foreground" : "bg-muted",
-                        message.isInternal && "border-2 border-orange-300 dark:border-orange-700",
-                      )}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    </div>
-
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="flex flex-col gap-2 mt-1">
-                        {message.attachments.map((attachment, idx) => (
-                          <div key={idx} className="flex items-center gap-2 p-2 border rounded-lg bg-card max-w-xs">
-                            {attachment.type === "image" && (
-                              <ImageIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                            )}
-                            {attachment.type === "video" && <Video className="h-4 w-4 text-purple-500 flex-shrink-0" />}
-                            {attachment.type === "document" && (
-                              <FileText className="h-4 w-4 text-orange-500 flex-shrink-0" />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate">{attachment.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {(attachment.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isOwn={isOwn}
+                  onReply={handleReply}
+                  onReaction={handleReaction}
+                  currentUser={userRole === "cs" ? "John Doe (CS)" : "Client"}
+                />
               )
             })}
 
@@ -300,7 +264,7 @@ export function TicketConversation({
           </div>
         </ScrollArea>
 
-        {/* Input Area - hide when closed */}
+        {/* Input Area */}
         {!isClosed && (
           <div className="p-4 border-t border-border bg-card">
             <div className="max-w-4xl mx-auto">
@@ -308,6 +272,19 @@ export function TicketConversation({
                 <div className="mb-2 flex items-center gap-2 text-sm text-orange-600 dark:text-orange-400">
                   <Lock className="h-4 w-4" />
                   <span>Internal note - only visible to CS team</span>
+                </div>
+              )}
+
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div className="mb-3 p-3 bg-muted rounded border border-border flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Replying to:</p>
+                    <p className="text-sm truncate">{replyingTo.content}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setReplyingTo(null)} className="ml-2 flex-shrink-0">
+                    ✕
+                  </Button>
                 </div>
               )}
 

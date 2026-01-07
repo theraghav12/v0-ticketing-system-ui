@@ -32,6 +32,15 @@ export interface Message {
   timestamp: string
   isInternal: boolean
   attachments?: Attachment[]
+  reactions?: MessageReaction[]
+  replyToId?: string
+  replyToContent?: string
+}
+
+export interface MessageReaction {
+  emoji: string
+  users: string[]
+  count: number
 }
 
 export interface Attachment {

@@ -200,6 +200,7 @@ export const mockMessages: Message[] = [
     senderRole: "client",
     timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     isInternal: false,
+    reactions: [{ emoji: "👍", users: ["John Doe (CS)"], count: 1 }],
   },
   {
     id: "m2",
@@ -239,6 +240,10 @@ export const mockMessages: Message[] = [
     senderRole: "cs",
     timestamp: new Date(Date.now() - 1000 * 60 * 100).toISOString(),
     isInternal: false,
+    reactions: [
+      { emoji: "🚀", users: ["Restaurant Owner"], count: 1 },
+      { emoji: "❤️", users: ["Restaurant Owner", "John Doe (CS)"], count: 2 },
+    ],
   },
   {
     id: "m6",
